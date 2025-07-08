@@ -261,9 +261,9 @@
                             ${cleanText(device.status) || 'Inconnu'}
                         </td>
                         <td>
-                            <button class="btn btn-danger" onclick="disableDevice(${index})">
-                                Désactiver
-                            </button>
+                            ${device.status === 'Actif' 
+                                ? `<button class="btn btn-danger" onclick="disableDevice(${index})">Désactiver</button>` 
+                                : `<button class="btn btn-success" onclick="enableDevice(${index})">Activer</button>`}
                         </td>
                     </tr>
                 `;
@@ -316,6 +316,22 @@
 
                 if (!response.ok) throw new Error(await response.text());
                 fetchData(); // Recharge les données après la désactivation
+            } catch (error) {
+                console.error("Erreur:", error);
+                alert("Erreur: " + error.message);
+            }
+        }
+
+        async function enableDevice(index) {
+            try {
+                const response = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'enable', deviceIndex: index }) // Envoie l'index du périphérique
+                });
+
+                if (!response.ok) throw new Error(await response.text());
+                fetchData(); // Recharge les données après l'activation
             } catch (error) {
                 console.error("Erreur:", error);
                 alert("Erreur: " + error.message);

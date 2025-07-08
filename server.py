@@ -127,6 +127,8 @@ def control_usb():
     action = request.json.get('action')
     device_index = request.json.get('deviceIndex')  # Récupère l'index du périphérique
 
+    devices = get_usb_devices()  # Récupère la liste des périphériques USB
+
     if action == "toggle_schedule":
         schedule_running = not schedule_running
         if schedule_running:
@@ -136,18 +138,43 @@ def control_usb():
             "schedule": schedule_running
         })
     elif action == "disable":
-        # Logique pour désactiver un périphérique spécifique
-        devices = get_usb_devices()
+        # Désactiver un périphérique spécifique
         if device_index is not None and 0 <= device_index < len(devices):
             device = devices[device_index]
             print(f"Désactivation du périphérique: {device['name']}")
-            disable_usb_ports()  # Désactive les ports USB (ajustez si nécessaire)
-            return jsonify({"success": True, "device": device})
+            try:
+                ps_script = f"""
+                $device = Get-PnpDevice | Where-Object {{ $_.Name -eq '{device['name']}' }}
+                if ($device) {{
+                    Disable-PnpDevice -InstanceId $device.InstanceId -Confirm:$false
+                }}
+                """
+                subprocess.run(["powershell", "-Command", ps_script], check=True, text=True)
+                return jsonify({"success": True, "device": device})
+            except subprocess.CalledProcessError as e:
+                print(f"Erreur désactivation: {e}")
+                return jsonify({"error": "Erreur lors de la désactivation"}), 500
         else:
             return jsonify({"error": "Index de périphérique invalide"}), 400
     elif action == "enable":
-        enable_usb_ports()
-        return jsonify({"success": True, "status": usb_status})
+        # Activer un périphérique spécifique
+        if device_index is not None and 0 <= device_index < len(devices):
+            device = devices[device_index]
+            print(f"Activation du périphérique: {device['name']}")
+            try:
+                ps_script = f"""
+                $device = Get-PnpDevice | Where-Object {{ $_.Name -eq '{device['name']}' }}
+                if ($device) {{
+                    Enable-PnpDevice -InstanceId $device.InstanceId -Confirm:$false
+                }}
+                """
+                subprocess.run(["powershell", "-Command", ps_script], check=True, text=True)
+                return jsonify({"success": True, "device": device})
+            except subprocess.CalledProcessError as e:
+                print(f"Erreur activation: {e}")
+                return jsonify({"error": "Erreur lors de l'activation"}), 500
+        else:
+            return jsonify({"error": "Index de périphérique invalide"}), 400
     else:
         return jsonify({"error": "Action invalide"}), 400
 
