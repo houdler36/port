@@ -55,6 +55,10 @@
         .btn-danger {
             background-color: #dc3545;
             color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
         }
         .btn-success {
             background-color: #28a745;
@@ -91,7 +95,7 @@
             color: #28a745; /* Vert pour les périphériques actifs */
         }
         .status-inactive {
-            color: #dc3545; /* Rouge pour les périphériques inactifs */
+            color: #dc3545; /* Rouge pour les périphériques désactivés */
         }
         .warning {
             background-color: #fff3cd;
@@ -160,21 +164,16 @@
         <table class="usb-table">
             <thead>
                 <tr>
-                    <th colspan="5">Nom</th>
-                    <th colspan="5">Fabricant</th>
-                    <th colspan="5">Type</th>
-                    <th colspan="5">Lecteur</th>
-                    <th colspan="5">Statut</th>
+                    <th>Nom</th>
+                    <th>Fabricant</th>
+                    <th>Type</th>
+                    <th>Lecteur</th>
+                    <th>Statut</th>
+                    <th>Action</th> <!-- Nouvelle colonne pour les boutons -->
                 </tr>
             </thead>
             <tbody id="usbList">
-                <tr>
-                    <td colspan="5" id="header-name">Chargement des données...</td>
-                    <td colspan="5" id="header-manufacturer">Chargement des données...</td>
-                    <td colspan="5" id="header-type" style="text-align: center;">Chargement des données...</td>
-                    <td colspan="5" id="header-drive" style="text-align: center;">Chargement des données...</td>
-                    <td colspan="5" id="header-status" style="text-align: center;color: #28a745;">Chargement des données...</td>
-                </tr>
+                <!-- Les données seront insérées ici -->
             </tbody>
         </table>
 
@@ -237,28 +236,37 @@
 
         // Mise à jour de la liste USB
         function updateUsbList(devices) {
-            // Réinitialiser les éléments avec des IDs statiques
-            document.getElementById('header-name').innerHTML = '';
-            document.getElementById('header-manufacturer').innerHTML = '';
-            document.getElementById('header-type').innerHTML = '';
-            document.getElementById('header-drive').innerHTML = '';
-            document.getElementById('header-status').innerHTML = '';
+            const usbList = document.getElementById('usbList');
+            usbList.innerHTML = ''; // Réinitialiser la liste
 
             if (!devices || devices.length === 0) {
-                document.getElementById('usbList').innerHTML = `
-                    <div class="grid-item" style="grid-column: 1 / span 5; text-align: center;">
-                        Aucun périphérique détecté
-                    </div>
+                usbList.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: red;">
+                            Aucun périphérique détecté
+                        </td>
+                    </tr>
                 `;
                 return;
             }
 
-            devices.forEach((device) => {
-                document.getElementById('header-name').innerHTML += `<div>${cleanText(device.name) || 'Inconnu'}</div>`;
-                document.getElementById('header-manufacturer').innerHTML += `<div>${cleanText(device.manufacturer) || 'Inconnu'}</div>`;
-                document.getElementById('header-type').innerHTML += `<div>${cleanText(device.type) || 'Périphérique'}</div>`;
-                document.getElementById('header-drive').innerHTML += `<div>${cleanText(device.drive) || '-'}</div>`;
-                document.getElementById('header-status').innerHTML += `<div>${cleanText(device.status) || 'Inconnu'}</div>`;
+            devices.forEach((device, index) => {
+                usbList.innerHTML += `
+                    <tr>
+                        <td>${cleanText(device.name) || 'Inconnu'}</td>
+                        <td>${cleanText(device.manufacturer) || 'Inconnu'}</td>
+                        <td>${cleanText(device.type) || 'Périphérique'}</td>
+                        <td>${cleanText(device.drive) || '-'}</td>
+                        <td class="status-${device.status === 'Actif' ? 'active' : 'inactive'}">
+                            ${cleanText(device.status) || 'Inconnu'}
+                        </td>
+                        <td>
+                            <button class="btn btn-danger" onclick="disableDevice(${index})">
+                                Désactiver
+                            </button>
+                        </td>
+                    </tr>
+                `;
             });
         }
 
@@ -297,6 +305,22 @@
                 alert("Erreur: " + error.message);
             }
         });
+
+        async function disableDevice(index) {
+            try {
+                const response = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'disable', deviceIndex: index }) // Envoie l'index du périphérique
+                });
+
+                if (!response.ok) throw new Error(await response.text());
+                fetchData(); // Recharge les données après la désactivation
+            } catch (error) {
+                console.error("Erreur:", error);
+                alert("Erreur: " + error.message);
+            }
+        }
 
         // Initialisation
         document.addEventListener('DOMContentLoaded', () => {

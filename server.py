@@ -125,7 +125,8 @@ def control_usb():
         return jsonify({"error": "Admin privileges required"}), 403
     
     action = request.json.get('action')
-    
+    device_index = request.json.get('deviceIndex')  # Récupère l'index du périphérique
+
     if action == "toggle_schedule":
         schedule_running = not schedule_running
         if schedule_running:
@@ -134,11 +135,21 @@ def control_usb():
             "success": True,
             "schedule": schedule_running
         })
-    elif action in ["enable", "disable"]:
-        toggle_usb()
+    elif action == "disable":
+        # Logique pour désactiver un périphérique spécifique
+        devices = get_usb_devices()
+        if device_index is not None and 0 <= device_index < len(devices):
+            device = devices[device_index]
+            print(f"Désactivation du périphérique: {device['name']}")
+            disable_usb_ports()  # Désactive les ports USB (ajustez si nécessaire)
+            return jsonify({"success": True, "device": device})
+        else:
+            return jsonify({"error": "Index de périphérique invalide"}), 400
+    elif action == "enable":
+        enable_usb_ports()
         return jsonify({"success": True, "status": usb_status})
     else:
-        return jsonify({"error": "Invalid action"}), 400
+        return jsonify({"error": "Action invalide"}), 400
 
 if __name__ == '__main__':
     if not is_admin():
