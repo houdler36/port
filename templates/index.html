@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle des Ports USB</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #343a40;
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .control-panel {
+            background-color: white;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .enabled {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disabled {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .usb-grid {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr 1fr 1fr;
+            gap: 1px;
+            background-color: #dee2e6;
+            margin-top: 20px;
+        }
+        .grid-header {
+            padding: 12px;
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+        }
+        .grid-item {
+            padding: 10px;
+            background-color: white;
+            display: flex;
+            align-items: center;
+        }
+        .disk-item {
+            background-color: #fff3cd !important;
+        }
+        .status-active {
+            color: #28a745;
+        }
+        .status-inactive {
+            color: #dc3545;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Contrôle des Ports USB</h1>
+    </div>
+    
+    <div class="control-panel">
+        <div id="statusDisplay" class="status enabled">
+            Statut USB: CHARGEMENT...
+        </div>
+        
+        <div>
+            <button id="toggleBtn" class="btn btn-primary">Basculer USB</button>
+            <button id="scheduleBtn" class="btn btn-warning">Cycle automatique: OFF</button>
+        </div>
+        
+        <div class="warning">
+            <strong>Attention :</strong> La désactivation n'affecte que les périphériques de stockage.
+        </div>
+        
+        <h3>Périphériques USB connectés</h3>
+        <div class="usb-grid">
+            <div class="grid-header">Nom</div>
+            <div class="grid-header">Fabricant</div>
+            <div class="grid-header">Type</div>
+            <div class="grid-header">Lecteur</div>
+            <div class="grid-header">Statut</div>
+            <div id="usbList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Fonction de nettoyage des caractères
+        function cleanText(text) {
+            if (!text) return '';
+            const replacements = {
+                '‚': 'é',
+                'Š': 'è',
+                '“': 'ô',
+                'ÿ': ' ',
+                '‰': 'ê',
+                '‘': 'à'
+            };
+            return text.replace(/[‚Š“ÿ‰‘]/g, char => replacements[char] || char);
+        }
+
+        // Fonction principale
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/status');
+                if (!response.ok) throw new Error('Erreur réseau');
+                const data = await response.json();
+                console.log("Données reçues:", data);
+                updateUI(data);
+            } catch (error) {
+                console.error("Erreur:", error);
+                document.getElementById('usbList').innerHTML = `
+                    <div class="grid-item" style="grid-column: 1 / span 5; text-align: center; color: red;">
+                        Erreur de chargement des données
+                    </div>
+                `;
+            }
+        }
+
+        // Mise à jour de l'interface
+        function updateUI(data) {
+            // Statut USB
+            const statusDiv = document.getElementById('statusDisplay');
+            statusDiv.textContent = `Statut USB: ${data.status.toUpperCase()}`;
+            statusDiv.className = `status ${data.status}`;
+            
+            // Boutons
+            const toggleBtn = document.getElementById('toggleBtn');
+            toggleBtn.textContent = data.status === 'enabled' ? 'Désactiver USB' : 'Activer USB';
+            toggleBtn.className = data.status === 'enabled' ? 'btn btn-danger' : 'btn btn-success';
+            
+            const scheduleBtn = document.getElementById('scheduleBtn');
+            scheduleBtn.textContent = `Cycle automatique: ${data.schedule ? 'ON' : 'OFF'}`;
+            scheduleBtn.style.backgroundColor = data.schedule ? '#28a745' : '#ffc107';
+            
+            // Liste USB
+            updateUsbList(data.devices);
+        }
+
+        // Mise à jour de la liste USB
+        function updateUsbList(devices) {
+            const usbList = document.getElementById('usbList');
+            usbList.innerHTML = '';
+            
+            if (!devices || devices.length === 0) {
+                usbList.innerHTML = `
+                    <div class="grid-item" style="grid-column: 1 / span 5; text-align: center;">
+                        Aucun périphérique détecté
+                    </div>
+                `;
+                return;
+            }
+            
+            devices.forEach(device => {
+                const row = document.createElement('div');
+                row.className = 'grid-item';
+                row.innerHTML = `
+                    <div>${cleanText(device.name) || 'Inconnu'}</div>
+                    <div>${cleanText(device.manufacturer) || 'Inconnu'}</div>
+                    <div class="${device.type === 'Disque' ? 'disk-item' : ''}">
+                        ${cleanText(device.type) || 'Périphérique'}
+                    </div>
+                    <div>${cleanText(device.drive) || '-'}</div>
+                    <div class="status-${device.status === 'Actif' ? 'active' : 'inactive'}">
+                        ${cleanText(device.status) || 'Inconnu'}
+                    </div>
+                `;
+                usbList.appendChild(row);
+            });
+        }
+
+        // Gestion des boutons
+        document.getElementById('toggleBtn').addEventListener('click', async () => {
+            const action = document.getElementById('statusDisplay')
+                .textContent.includes('ENABLED') ? 'disable' : 'enable';
+            
+            try {
+                const response = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                });
+                
+                if (!response.ok) throw new Error(await response.text());
+                fetchData();
+            } catch (error) {
+                console.error("Erreur:", error);
+                alert("Erreur: " + error.message);
+            }
+        });
+
+        document.getElementById('scheduleBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'toggle_schedule' })
+                });
+                
+                if (!response.ok) throw new Error(await response.text());
+                fetchData();
+            } catch (error) {
+                console.error("Erreur:", error);
+                alert("Erreur: " + error.message);
+            }
+        });
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            setInterval(fetchData, 3000);
+        });
+    </script>
+</body>
+</html>
