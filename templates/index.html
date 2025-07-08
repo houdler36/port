@@ -82,15 +82,16 @@
             background-color: white;
             display: flex;
             align-items: center;
+            border: 1px solid #dee2e6;
         }
         .disk-item {
             background-color: #fff3cd !important;
         }
         .status-active {
-            color: #28a745;
+            color: #28a745; /* Vert pour les périphériques actifs */
         }
         .status-inactive {
-            color: #dc3545;
+            color: #dc3545; /* Rouge pour les périphériques inactifs */
         }
         .warning {
             background-color: #fff3cd;
@@ -99,6 +100,39 @@
             border-radius: 4px;
             margin-top: 20px;
             border-left: 4px solid #ffc107;
+        }
+        .usb-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .usb-table th, .usb-table td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .usb-table th {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+        }
+
+        .usb-table td {
+            background-color: white;
+            padding: 15px; /* Augmentez le padding pour créer un espacement visuel */
+            border: 1px solid #dee2e6;
+        }
+
+        .status-active {
+            color: #28a745; /* Vert pour les périphériques actifs */
+        }
+
+        .status-inactive {
+            color: #dc3545; /* Rouge pour les périphériques inactifs */
         }
     </style>
 </head>
@@ -122,13 +156,29 @@
         </div>
         
         <h3>Périphériques USB connectés</h3>
-        <div class="usb-grid">
-            <div class="grid-header">Nom</div>
-            <div class="grid-header">Fabricant</div>
-            <div class="grid-header">Type</div>
-            <div class="grid-header">Lecteur</div>
-            <div class="grid-header">Statut</div>
-            <div id="usbList"></div>
+
+        <table class="usb-table">
+            <thead>
+                <tr>
+                    <th colspan="5">Nom</th>
+                    <th colspan="5">Fabricant</th>
+                    <th colspan="5">Type</th>
+                    <th colspan="5">Lecteur</th>
+                    <th colspan="5">Statut</th>
+                </tr>
+            </thead>
+            <tbody id="usbList">
+                <tr>
+                    <td colspan="5" id="header-name">Chargement des données...</td>
+                    <td colspan="5" id="header-manufacturer">Chargement des données...</td>
+                    <td colspan="5" id="header-type" style="text-align: center;">Chargement des données...</td>
+                    <td colspan="5" id="header-drive" style="text-align: center;">Chargement des données...</td>
+                    <td colspan="5" id="header-status" style="text-align: center;color: #28a745;">Chargement des données...</td>
+                </tr>
+            </tbody>
+        </table>
+
+       
         </div>
     </div>
 
@@ -153,7 +203,7 @@
                 const response = await fetch('/api/status');
                 if (!response.ok) throw new Error('Erreur réseau');
                 const data = await response.json();
-                console.log("Données reçues:", data);
+                console.log("Données reçues de l'API:", data); // Vérifiez les données ici
                 updateUI(data);
             } catch (error) {
                 console.error("Erreur:", error);
@@ -187,33 +237,28 @@
 
         // Mise à jour de la liste USB
         function updateUsbList(devices) {
-            const usbList = document.getElementById('usbList');
-            usbList.innerHTML = '';
-            
+            // Réinitialiser les éléments avec des IDs statiques
+            document.getElementById('header-name').innerHTML = '';
+            document.getElementById('header-manufacturer').innerHTML = '';
+            document.getElementById('header-type').innerHTML = '';
+            document.getElementById('header-drive').innerHTML = '';
+            document.getElementById('header-status').innerHTML = '';
+
             if (!devices || devices.length === 0) {
-                usbList.innerHTML = `
+                document.getElementById('usbList').innerHTML = `
                     <div class="grid-item" style="grid-column: 1 / span 5; text-align: center;">
                         Aucun périphérique détecté
                     </div>
                 `;
                 return;
             }
-            
-            devices.forEach(device => {
-                const row = document.createElement('div');
-                row.className = 'grid-item';
-                row.innerHTML = `
-                    <div>${cleanText(device.name) || 'Inconnu'}</div>
-                    <div>${cleanText(device.manufacturer) || 'Inconnu'}</div>
-                    <div class="${device.type === 'Disque' ? 'disk-item' : ''}">
-                        ${cleanText(device.type) || 'Périphérique'}
-                    </div>
-                    <div>${cleanText(device.drive) || '-'}</div>
-                    <div class="status-${device.status === 'Actif' ? 'active' : 'inactive'}">
-                        ${cleanText(device.status) || 'Inconnu'}
-                    </div>
-                `;
-                usbList.appendChild(row);
+
+            devices.forEach((device) => {
+                document.getElementById('header-name').innerHTML += `<div>${cleanText(device.name) || 'Inconnu'}</div>`;
+                document.getElementById('header-manufacturer').innerHTML += `<div>${cleanText(device.manufacturer) || 'Inconnu'}</div>`;
+                document.getElementById('header-type').innerHTML += `<div>${cleanText(device.type) || 'Périphérique'}</div>`;
+                document.getElementById('header-drive').innerHTML += `<div>${cleanText(device.drive) || '-'}</div>`;
+                document.getElementById('header-status').innerHTML += `<div>${cleanText(device.status) || 'Inconnu'}</div>`;
             });
         }
 
@@ -255,8 +300,8 @@
 
         // Initialisation
         document.addEventListener('DOMContentLoaded', () => {
-            fetchData();
-            setInterval(fetchData, 3000);
+            fetchData(); // Charge les données au démarrage
+            setInterval(fetchData, 3000); // Recharge les données toutes les 3 secondes
         });
     </script>
 </body>
